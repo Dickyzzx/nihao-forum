@@ -45,7 +45,6 @@
                         <option value="{{ school.slug }}">{{ school.name }}</option>
                     {% endfor %}
                 </select>
-                
             </div>
 
             <div>
@@ -75,7 +74,13 @@
             <div id="email_fields">
                 <label class="block text-sm mb-1">.edu 邮箱：</label>
                 <input type="email" name="email" class="w-full border px-3 py-2 rounded">
-                <label class="block text-sm mb-1 mt-2">邮箱验证码：</label>
+
+                <div class="mt-2">
+                    <button type="button" onclick="sendCode()" class="text-sm text-blue-500 hover:underline">发送验证码</button>
+                    <span id="code-status" class="text-sm text-gray-500 ml-2"></span>
+                </div>
+
+                <label class="block text-sm mb-1 mt-4">邮箱验证码：</label>
                 <input type="text" name="email_code" class="w-full border px-3 py-2 rounded">
             </div>
 
@@ -107,6 +112,21 @@
                 inviteField.classList.remove('hidden');
             }
         });
+
+        function sendCode() {
+            const email = document.querySelector('input[name="email"]').value;
+            const status = document.getElementById('code-status');
+            status.textContent = '发送中...';
+
+            fetch(`/accounts/send_code/?email=${encodeURIComponent(email)}`)
+                .then(res => res.json())
+                .then(data => {
+                    status.textContent = data.message;
+                })
+                .catch(() => {
+                    status.textContent = '发送失败';
+                });
+        }
     </script>
 </body>
 </html>
