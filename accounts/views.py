@@ -1,6 +1,6 @@
 # accounts/views.py
 
-import random
+import random, string
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login
 from django.contrib import messages
@@ -8,6 +8,11 @@ from django.contrib.auth.models import User
 from schools.models import School
 from django.http import JsonResponse
 from django.core.mail import send_mail
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from .models import InviteCode
+from django.contrib.auth.decorators import login_required
+
 
 # 临时保存验证码的字典（后续用缓存/数据库替换）
 email_verification_codes = {}
@@ -63,14 +68,23 @@ def register_view(request):
             del email_verification_codes[email]
 
         elif method == 'invite':
-            if invite_code != 'nihao2025':  # 临时设定邀请码
-                messages.error(request, '邀请码无效。')
+            try:
+                code_obj = InviteCode.objects.get(code=invite_code, used=False)
+            except InviteCode.DoesNotExist:
+                messages.error(request, '邀请码无效或已使用。')
                 return render(request, 'accounts/register.html', {'schools': schools})
+
 
         # 创建用户
         user = User.objects.create_user(username=username, password=password)
         user.first_name = display_name  # 暂用 first_name 存昵称
         user.save()
+
+        # ↓ 更新邀请码状态
+        if method == 'invite':
+            code_obj.used = True
+            code_obj.used_by = user
+            code_obj.save()
 
         messages.success(request, '注册成功，请登录。')
         return redirect('login')
@@ -95,3 +109,27 @@ def send_verification_code(request):
     )
 
     return JsonResponse({'success': True, 'message': '验证码已发送，请查收邮箱'})
+
+
+def generate_random_code(length=8):
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+
+@login_required
+def generate_invite_code(request):
+    # 若已有未使用的邀请码，先返回它
+    existing = InviteCode.objects.filter(inviter=request.user, used=False).first()
+    if existing:
+        return JsonResponse({'code': existing.code})
+
+    # 否则生成新邀请码
+    while True:
+        code = generate_random_code()
+        if not InviteCode.objects.filter(code=code).exists():
+            break
+
+    invite = InviteCode.objects.create(code=code, inviter=request.user)
+    return JsonResponse({'code': invite.code})
+
+@login_required
+def profile_view(request):
+    return render(request, 'accounts/profile.html')
