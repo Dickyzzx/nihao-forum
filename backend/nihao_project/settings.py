@@ -46,10 +46,12 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     'accounts',
-    'schools'
+    'schools',
+    'corsheaders'
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -131,6 +133,26 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ✅ 安全的跨域设置（支持 fetch 带 cookie）
+# ✅ 允许跨域请求时带上 Cookie（包括 sessionid 和 csrftoken）
+CORS_ALLOW_CREDENTIALS = True
+
+# ✅ 前端允许跨域访问的地址（开发阶段用 localhost:5173）
+# ⚠️ 上线时请替换为你的正式前端地址，如：
+# CORS_ALLOWED_ORIGINS = ["https://nihao.com"]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
+
+# ✅ Django 允许接受这些来源的 CSRF 请求（否则会 403）
+# ⚠️ 这里也必须是正式的 HTTPS 前端域名
+# 例如上线时应写：
+# CSRF_TRUSTED_ORIGINS = ["https://nihao.com"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+]
+
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
