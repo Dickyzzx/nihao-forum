@@ -1,12 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
-
-class School(models.Model):
-    name = models.CharField(max_length=100)
-
-    def __str__(self):
-        return self.name
+from schools.models import School  # ✅ 正确引用真正的 School 模型
 
 class CustomUser(AbstractUser):
     nickname = models.CharField(max_length=100)
