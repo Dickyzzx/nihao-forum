@@ -1,10 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import InviteCode, CustomUser, School
-
-@admin.register(School)
-class SchoolAdmin(admin.ModelAdmin):
-    list_display = ['name']
+from .models import InviteCode, CustomUser
 
 @admin.register(InviteCode)
 class InviteCodeAdmin(admin.ModelAdmin):
