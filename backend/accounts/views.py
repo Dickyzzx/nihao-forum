@@ -12,9 +12,12 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-# 临时保存验证码的字典（后续用缓存/数据库替换）
+# 临时保存验证码（建议后期改为缓存或数据库）
 email_verification_codes = {}
 
+# ------------------------
+# 登录视图
+# ------------------------
 @csrf_protect
 @require_POST
 def login_view(request):
@@ -39,11 +42,15 @@ def login_view(request):
         return JsonResponse({
             'success': True,
             'school_id': user.school.id if user.school else None,
-            'school_name': user.school.name if user.school else None
+            'school_name': user.school.name if user.school else None,
+            'school_slug': user.school.slug if user.school else None  # ✅ 添加 slug
         })
     else:
         return JsonResponse({'success': False, 'message': 'Incorrect password'}, status=400)
 
+# ------------------------
+# 注册视图
+# ------------------------
 @csrf_protect
 def register_view(request):
     if request.method != 'POST':
@@ -57,7 +64,7 @@ def register_view(request):
     username = data.get('email')
     password = data.get('password')
     nickname = data.get('nickname')
-    school_slug = data.get('school')  # ✅ 现在传的是 slug
+    school_slug = data.get('school')  # ✅ 前端传 slug
     method = data.get('register_method')
     email = data.get('email')
     email_code = data.get('email_code')
@@ -102,6 +109,9 @@ def register_view(request):
 
     return JsonResponse({'success': True})
 
+# ------------------------
+# 发送邮箱验证码（注册用）
+# ------------------------
 def send_verification_code(request):
     email = request.GET.get('email')
     if not email or not email.endswith('.edu'):
@@ -120,9 +130,15 @@ def send_verification_code(request):
 
     return JsonResponse({'success': True, 'message': '验证码已发送，请查收邮箱'})
 
+# ------------------------
+# 邀请码生成工具函数
+# ------------------------
 def generate_random_code(length=8):
     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
 
+# ------------------------
+# 登录用户生成邀请码
+# ------------------------
 @login_required
 def generate_invite_code(request):
     existing = InviteCode.objects.filter(inviter=request.user, used=False).first()
@@ -137,14 +153,23 @@ def generate_invite_code(request):
     invite = InviteCode.objects.create(code=code, inviter=request.user)
     return JsonResponse({'code': invite.code})
 
+# ------------------------
+# 登录用户信息页（模板页面）
+# ------------------------
 @login_required
 def profile_view(request):
     return render(request, 'accounts/profile.html')
 
+# ------------------------
+# 设置 CSRF Cookie（给前端用）
+# ------------------------
 @ensure_csrf_cookie
 def csrf_token_view(request):
     return JsonResponse({'success': True})
 
+# ------------------------
+# 登录用户身份信息（前端调试）
+# ------------------------
 @login_required
 def whoami_view(request):
     user = request.user
