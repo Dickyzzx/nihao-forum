@@ -36,7 +36,11 @@ def login_view(request):
 
     if user is not None:
         login(request, user)
-        return JsonResponse({'success': True})
+        return JsonResponse({
+            'success': True,
+            'school_id': user.school.id if user.school else None,
+            'school_name': user.school.name if user.school else None
+        })
     else:
         return JsonResponse({'success': False, 'message': 'Incorrect password'}, status=400)
 

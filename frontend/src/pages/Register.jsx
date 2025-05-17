@@ -22,13 +22,22 @@ export default function Register() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [school, setSchool] = useState('');
+  const [schools, setSchools] = useState([]);
   const [code, setCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    fetch('http://localhost:8000/accounts/csrf/', {
-      credentials: 'include',
-    });
+    // 获取 csrf token
+    fetch('http://localhost:8000/accounts/csrf/', { credentials: 'include' });
+
+    // 获取学校列表
+    fetch('http://localhost:8000/schools/')
+      .then(res => res.json())
+      .then(data => setSchools(data))
+      .catch(err => {
+        console.error('Failed to load schools:', err);
+        alert('无法加载学校列表');
+      });
   }, []);
 
   const handleSubmit = async () => {
@@ -36,6 +45,16 @@ export default function Register() {
       alert('Passwords do not match!');
       return;
     }
+
+    console.log("Submitting formData:", {
+      nickname,
+      email,
+      password,
+      register_method: method,
+      school,
+      invite_code: method === 'invite' ? code : '',
+      email_code: method === 'email' ? code : '',
+    });
 
     const formData = {
       nickname,
@@ -61,6 +80,7 @@ export default function Register() {
       const data = await response.json();
       if (data.success) {
         alert('Registration successful!');
+        window.location.href = '/login';
       } else {
         alert(data.message || 'Registration failed.');
       }
@@ -169,9 +189,11 @@ export default function Register() {
               onChange={(e) => setSchool(e.target.value)}
             >
               <option value="">-- Select School --</option>
-              <option value="JHU">JHU</option>
-              <option value="CMU">CMU</option>
-              <option value="MIT">MIT</option>
+              {schools.map(s => (
+                <option key={s.slug} value={s.slug}>
+                  {s.name}
+                </option>
+              ))}
             </select>
           </div>
 
