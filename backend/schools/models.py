@@ -42,3 +42,31 @@ class Post(models.Model):
 
     def __str__(self):
         return f"[{self.school.name}] {self.title}"
+
+# ---------------------------
+# 评论模型，每个帖子可以有多个评论
+# ---------------------------
+class Comment(models.Model):
+    # 所属的帖子
+    post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='comments')
+
+    # 评论作者（可为空）
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    # 评论内容
+    content = models.TextField()
+
+    # 创建时间（自动记录）
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # ✅ 父评论：如果为 null，表示是一级评论；否则表示是某条评论的回复
+    parent = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='replies'
+    )
+
+    def __str__(self):
+        return f"Comment on {self.post.title} by {self.author.nickname if self.author else 'Anonymous'}"
