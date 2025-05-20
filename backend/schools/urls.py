@@ -9,7 +9,7 @@ from .views import (
 
 urlpatterns = [
     # 获取所有学校列表（注册下拉框）
-    path('list/', school_list_view, name='school_list'),
+    path('', school_list_view, name='school_list'),
 
     # 某个学校的帖子列表
     path('<slug:slug>/', school_board_view, name='school_board'),

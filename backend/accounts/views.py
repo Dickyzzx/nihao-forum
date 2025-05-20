@@ -9,6 +9,9 @@ from django.views.decorators.http import require_POST
 from .models import InviteCode
 from schools.models import School
 from django.contrib.auth import get_user_model
+from django.views.decorators.http import require_GET
+from django.core.cache import cache  # 用于临时保存验证码
+from django.conf import settings
 
 User = get_user_model()
 
@@ -116,9 +119,16 @@ def send_verification_code(request):
     email = request.GET.get('email')
     if not email or not email.endswith('.edu'):
         return JsonResponse({'success': False, 'message': '请输入有效的 .edu 邮箱'})
+    
+    #✅ 频率限制：检查 60 秒锁
+    if cache.get(f'register_lock:{email}'):
+        return JsonResponse({'success': False, 'message': '请勿频繁请求验证码，请稍后再试。'})
 
     code = str(random.randint(100000, 999999))
     email_verification_codes[email] = code
+
+    # ✅ 设置锁定：60 秒内禁止再次请求
+    cache.set(f'register_lock:{email}', True, timeout=60)
 
     send_mail(
         subject='nihao.com 邮箱验证码',
@@ -178,3 +188,62 @@ def whoami_view(request):
         "email": user.email,
         "school": user.school.name if user.school else None,
     })
+
+@require_GET
+def send_reset_code(request):
+    email = request.GET.get('email', '').strip()
+
+    if not email.endswith('.edu'):
+        return JsonResponse({'success': False, 'message': 'Only .edu emails allowed.'})
+
+    # ✅ 防止频繁请求：60 秒内禁止重复发送
+    if cache.get(f'reset_lock:{email}'):
+        return JsonResponse({'success': False, 'message': '请勿频繁请求验证码，请稍后再试。'})
+    
+    code = ''.join(random.choices('0123456789', k=6))
+
+    # 保存到缓存，5分钟有效
+    cache.set(f'reset_code:{email}', code, timeout=300)
+
+    # 设置请求频率锁：60 秒
+    cache.set(f'reset_lock:{email}', True, timeout=60)
+
+    try:
+        send_mail(
+            subject='Reset your password',
+            message=f'Your password reset code is: {code}',
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[email],
+        )
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': 'Failed to send email.'})
+    
+
+@csrf_protect
+@require_POST
+def reset_password_view(request):
+    try:
+        data = json.loads(request.body)
+        email = data.get('email', '').strip()
+        code = data.get('code', '').strip()
+        new_password = data.get('new_password', '').strip()
+
+        if not email or not code or not new_password:
+            return JsonResponse({'success': False, 'message': 'Missing fields.'})
+
+        cached_code = cache.get(f'reset_code:{email}')
+        if not cached_code or cached_code != code:
+            return JsonResponse({'success': False, 'message': 'Invalid or expired code.'})
+
+        try:
+            user = User.objects.get(email=email)
+            user.set_password(new_password)  # ✅ 正确加密密码
+            user.save()
+            cache.delete(f'reset_code:{email}')  # 清除验证码
+            return JsonResponse({'success': True})
+        except User.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'User not found.'})
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': 'Invalid request.'})
